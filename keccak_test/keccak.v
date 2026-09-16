@@ -1,9 +1,10 @@
 module main
 
-// keccak-256
-// this is used everywhere we need a hast that matches
-// with keccak-256(...) produces in the solidity contract: repository ids,
-// commit hashes, function selectors and Merkel tree root.
+// Keccak-256 (the Ethereum / Solidity flavour, NOT NIST SHA3-256 which uses
+// different padding). This is used everywhere we need a hash that matches
+// what `keccak256(...)` produces in the Solidity contract: repository ids,
+// commit hashes, function selectors and Merkle tree roots.
+
 const keccak_rounds = 24
 
 const round_constants = [
@@ -33,10 +34,9 @@ const round_constants = [
 	u64(0x8000000080008008),
 ]
 
-// rotation offsets and lane perumtation indices for the combined Rho+perumtation
-// step, in the standard odering rotc[i] is the
+// Rotation offsets and lane-permutation indices for the combined Rho+Pi
+// step, in the standard (Saarinen public-domain) ordering: rotc[i] is the
 // rotation applied when moving the lane that ends up at piln[i].
-//
 const rotc = [
 	1,
 	3,
