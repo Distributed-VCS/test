@@ -146,3 +146,55 @@ CHAIN_PID=$!
 #poll for readiness instead of a fixed sleep -- a fresh 'npm install'
 #right before this can make the fist startup noticeably slower than
 #later ones.
+echo -n "  waiting for hardhat node on port ${RPC_PORT}"
+READY=0
+for _ in $(seq 1 30); do
+  if curl -s -X POST -H "Content-Type: application/json" \
+    --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' \
+    "${RPC_URL}" >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  echo -n "."
+  sleep 1
+done
+echo ""
+if [ "$READY" -ne 1 ]; then
+  echo "Hardhat node never became ready. Log:"
+  cat "${WORK_DIR}/hardhat.log"
+  exit 1
+fi
+echo "  hardhat node pid ${CHAIN_PID} on port ${RPC_PORT}"
+
+DEPLOY_OUT=$(node -e "
+const { ethers } = require('ethers');
+const fs = require('fs');
+(async () => {
+  const provider = new ethers.JsonRpcProvider('${RPC_URL}');
+  const signer = await provider.getSigner(0);
+  const bytecode = '0x' + fs.readFileSync('${WORK_DIR}/build/DVCS.bin', 'utf8').trim();
+  const abi = JSON.parse(fs.readFileSync('${WORK_DIR}/build/DVCS.abi', 'utf8'));
+  const factory = new ethers.ContractFactory(abi, bytecode, signer);
+  const contract = await factory.deploy();
+  await contract.waitForDeployment();
+  const accounts = await provider.send('eth_accounts', []);
+  console.log('CONTRACT=' + await contract.getAddress());
+  console.log('ALICE=' + accounts[0]);
+  console.log('BOB=' + accounts[1]);
+})();
+")
+CONTRACT=$(echo "$DEPLOY_OUT" | grep '^CONTRACT=' | cut -d= -f2)
+ALICE=$(echo "$DEPLOY_OUT" | grep '^ALICE=' | cut -d= -f2)
+BOB=$(echo "$DEPLOY_OUT" | grep '^BOB=' | cut -d= -f2)
+if [ -z "$CONTRACT" ]; then
+  echo "Deploy failed:"
+  echo "$DEPLOY_OUT"
+  exit 1
+fi
+echo "  contract=${CONTRACT}"
+echo "  alice=${ALICE}"
+echo "  bob=${BOB}"
+
+ALICE_DIR="${WORK_DIR}/alice"
+BOB_DIR="${WORK_DIR}/bob"
+mkdir -p "$ALICE_DIR" "$BOB_DIR"
