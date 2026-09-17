@@ -124,3 +124,25 @@ json.dump(c['abi'], open('${WORK_DIR}/build/DVCS.abi','w'))
   exit 1
 }
 echo "  contract compiled"
+
+#start an isolated chain + deploy
+log_section "Chain setup"
+cd "${SCRIPT_DIR}"
+if [ ! -d node_modules/hardhat ] || [ ! -d node_modules/ethers ]; then
+  echo "  installing hardhat + ethers (one-time)..."
+  npm install --save-dev "hardhat@^2.22.0" ethers >/dev/null 2>&1
+fi
+if [ ! -f hardhat.config.js ]; then
+  cat >hardhat.config.js <<'EOF'
+module.exports = { solidity: "0.8.24" };
+EOF
+fi
+
+# hardhat must be run from a directory containing its own node_modules and
+# config hence `cd "${SCRIPT_DIR}"` above, which is already where we are)
+npx hardhat node --port "${RPC_PORT}" >"${WORK_DIR}/hardhat.log" 2>&1 &
+CHAIN_PID=$!
+
+#poll for readiness instead of a fixed sleep -- a fresh 'npm install'
+#right before this can make the fist startup noticeably slower than
+#later ones.
