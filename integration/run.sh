@@ -198,3 +198,30 @@ echo "  bob=${BOB}"
 ALICE_DIR="${WORK_DIR}/alice"
 BOB_DIR="${WORK_DIR}/bob"
 mkdir -p "$ALICE_DIR" "$BOB_DIR"
+
+# secnario setup, identity, private repo enforcement
+
+log_section "Setup + identity + private-repo enforcement"
+cd "$ALICE_DIR"
+"$DVCS" init >/dev/null
+check "alice: init" $? 0
+"$DVCS" remote "$RPC_URL" "$CONTRACT" "$ALICE" >/dev/null
+check "alice: remote" $? 0
+"$DVCS" identity-register "alice@example.com" >/dev/null
+check "alice: identity-register" $? 0
+"$DVCS" repo-create teamproject --private >/dev/null
+check "alice: repo-create --private" $? 0
+
+mkdir -p src
+echo "fn main() { println('v1') }" >src/main.v
+"$DVCS" add src >/dev/null
+"$DVCS" commit -m "Initial commit" >/dev/null
+PUSH_BLOCKED=$("$DVCS" push 2>&1)
+check "alice: push refused without crypto-init on private repo" $? 1
+check_contains "alice: refusal message mentions crypto-init" "$PUSH_BLOCKED" "crypto-init"
+
+"$DVCS" crypto-init "team secret passphrase" >/dev/null
+check "alice: crypto-init" $? 0
+export DVCS_PASSPHRASE="team secret passphrase"
+"$DVCS" push >/dev/null 2>&1
+check "alice: push succeeds after crypto-init" $? 0
