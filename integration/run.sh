@@ -64,3 +64,14 @@ check_not_contains() {
     echo "  PASS: $desc"
   fi
 }
+
+cleanup() {
+  #killing $chain_pid alone isn't reliable npx often spawns the atuatl_exit_code
+  #long running hardhat process as a child of the npx process it
+  #returned, so $! only captures the wrapper's pid, which can exit on
+  #its own while the real node keeps running (same issue fixed in
+  #scripts/demo.sh). math by the exact command line instead.
+  pkill -f "hardhat node --port ${RPC_PORT}" 2>/dev/null
+  rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
