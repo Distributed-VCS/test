@@ -76,17 +76,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-#build cli + contraanct 
+#build cli + contraanct
 
 log_section "Build"
 cd "${PROJECT_ROOT}/cli"
-v -cc tcc -o "${WORK_DIR}/dvcs". || { echo "CLI build failed"; exit 1; }
+v -cc tcc -o "${WORK_DIR}/dvcs". || {
+  echo "CLI build failed"
+  exit 1
+}
 DVCS="${WORK_DIR}/dvcs"
 echo " built ${DVCS}"
 
 cd "${PROJECT_ROOT}"
 mkdir -p "${WORK_DIR}/build"
-cat > "${WORK_DIR}/input.json" <<PYEOF
+cat >"${WORK_DIR}/input.json" <<PYEOF
 {
   "language": "Solidity",
   "sources" : {"Dvcs.sol": {"content": null}},
@@ -97,3 +100,27 @@ cat > "${WORK_DIR}/input.json" <<PYEOF
 "outputSelection":{"*":{"*":["abi","evm.bytecode.object"]}}
 }
 }
+PYEOF
+python3 -c "
+import json
+d = json.load(open('${WORK_DIR}/input.json'))
+d['sources']['DVCS.sol']['content']=open('contracts/DVCS.sol').read()
+json.dump(d,open('${WORK_DIR}/input.json','w'))
+"
+npx -p solc solcjs --standard-json <"${WORK_DIR}/input.json" >"${WORK_DIR}/output.json" 2>/dev/null
+tail -n +2 "${WORK_DIR}/output.json" >"${WORK_DIR}/output_clean.json"
+python3 -c "
+import json
+d = json.load(open('${WORK_DIR}/output_clean.json'))
+errs = [e for e in (d.get('errors') or []) if e.get('severity')=='error']
+if errs:
+    for e in errs: print(e.get('message'))
+    raise SystemExit(1)
+c = d['contracts']['DVCS.sol']['DVCS']
+open('${WORK_DIR}/build/DVCS.bin','w').write(c['evm']['bytecode']['object'])
+json.dump(c['abi'], open('${WORK_DIR}/build/DVCS.abi','w'))
+" || {
+  echo "Contract compile failed"
+  exit 1
+}
+echo "  contract compiled"
