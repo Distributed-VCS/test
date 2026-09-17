@@ -75,3 +75,25 @@ cleanup() {
   rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT
+
+#build cli + contraanct 
+
+log_section "Build"
+cd "${PROJECT_ROOT}/cli"
+v -cc tcc -o "${WORK_DIR}/dvcs". || { echo "CLI build failed"; exit 1; }
+DVCS="${WORK_DIR}/dvcs"
+echo " built ${DVCS}"
+
+cd "${PROJECT_ROOT}"
+mkdir -p "${WORK_DIR}/build"
+cat > "${WORK_DIR}/input.json" <<PYEOF
+{
+  "language": "Solidity",
+  "sources" : {"Dvcs.sol": {"content": null}},
+"settings": {
+"evmVersion":"paris",
+"viaIr":true,
+"optimizer":{"enabled":true,"runs":200},
+"outputSelection":{"*":{"*":["abi","evm.bytecode.object"]}}
+}
+}
