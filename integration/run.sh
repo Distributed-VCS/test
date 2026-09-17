@@ -52,3 +52,15 @@ check_contains() {
     echo " FAIL: $desc (expected to find: $needle)"
   fi
 }
+
+check_not_contains() {
+  local desc="$1" haystack="$2" needle="$3"
+  if echo "$haystack" | grep -qF -- "$needle"; then
+    FAIL=$((FAIL + 1))
+    FAILURES+=("desc")
+    echo " FAIL: $desc (should not contain: $needle)"
+  else
+    PASS=$((PASS + 1))
+    echo "  PASS: $desc"
+  fi
+}
