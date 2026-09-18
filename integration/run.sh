@@ -257,3 +257,18 @@ check_contains "bob: salt auto-discovered without being told directly" "$CFG" "e
 "$DVCS" checkout main >/dev/null
 check "bob: checkout after pull" $? 0
 check_contains "bob: decrypted content matches alice's" "$(cat src/main.v)" "v1"
+
+#scenario wrong passphrase rejected
+
+log_section "Wrong passphrase handling"
+EVE_DIR="${WORK_DIR}/eve"
+mkdir -p "$EVE_DIR"
+cd "$EVE_DIR"
+"$DVCS" init >/dev/null
+"$DVCS" remote "$RPC_URL" "$CONTRACT" "$BOB" >/dev/null
+"$DVCS" repo-connect "$ALICE" teamproject >/dev/null
+export DVCS_PASSPHRASE="totally wrong guess"
+EVE_PULL=$("$DVCS" pull 2>&1)
+"$DVCS" pull >/dev/null 2>&1
+check_contains "wrong passphrase: AES-GCM auth failure reported" "$EVE_PULL" "AES-GCM"
+export DVCS_PASSPHRASE="team secret passphrase"
