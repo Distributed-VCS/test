@@ -373,3 +373,30 @@ FIRST_COMMIT=$("$DVCS" log 2>&1 | grep '^commit ' | tail -1 | awk '{print $2}')
 echo "  rolling back to: ${FIRST_COMMIT}"
 "$DVCS" rollback "${FIRST_COMMIT:2:10}" >/dev/null 2>&1
 check "rollback by short prefix" $? 0
+
+#secnario on chain chunk size limit
+log_section "On-chain chunk size limit"
+cd "$SCRIPT_DIR"
+CHUNK_TEST=$(node -e "
+const { ethers } = require('ethers');
+const fs = require('fs');
+(async () => {
+  const provider = new ethers.JsonRpcProvider('${RPC_URL}');
+  const signer = await provider.getSigner(0);
+  const abi = JSON.parse(fs.readFileSync('${WORK_DIR}/build/DVCS.abi', 'utf8'));
+  const contract = new ethers.Contract('${CONTRACT}', abi, signer);
+  const repoId = await contract.computeRepoId('${ALICE}', 'teamproject');
+  const max = await contract.MAX_CHUNK_BYTES();
+  const oversized = '0x' + 'ab'.repeat(Number(max) + 1);
+  const hash = ethers.keccak256(ethers.toUtf8Bytes('itest-oversize'));
+  try {
+    await contract.pushBlobChunk.staticCall(repoId, hash, 0, 1, false, oversized);
+    console.log('FAIL: oversized chunk accepted');
+  } catch (e) {
+    const iface = new ethers.Interface(abi);
+    try { console.log('OK:' + iface.parseError(e.data).name); }
+    catch { console.log('OK:reverted'); }
+  }
+})();
+")
+check_contains "oversized chunk reverts with ChunkTooLarge" "$CHUNK_TEST" "OK:ChunkTooLarge"
