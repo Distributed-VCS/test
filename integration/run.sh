@@ -318,3 +318,20 @@ check "alice: merge PR" $? 0
 "$DVCS" pull main >/dev/null 2>&1 || "$DVCS" pull main >/dev/null 2>&1
 "$DVCS" checkout main >/dev/null
 check_contains "alice: merged PR content landed on main" "$(cat src/main.v)" "helper"
+
+#scenario pr min approval enforcement
+
+log_section "PR minimum approvals"
+"$DVCS" pr-min-approvals 2 >/dev/null
+check "alice: set min approvals to 2" $? 0
+"$DVCS" branch feature-y >/dev/null
+"$DVCS" checkout feature-y >/dev/null
+echo "more" >extra.txt
+"$DVCS" add extra.txt >/dev/null
+"$DVCS" commit -m "extra" >/dev/null
+"$DVCS" push feature-y >/dev/null 2>&1
+"$DVCS" pr-open feature-y main "Extra" "" >/dev/null
+"$DVCS" pr-approve 1 >/dev/null 2>&1
+check "alice: cannot approve own PR either" $? 1
+"$DVCS" pr-merge 1 >/dev/null 2>&1
+check "merge fails with 0/2 approvals" $? 1
