@@ -294,3 +294,27 @@ check_contains "show includes commit message" "$SHOW_OUT" "Add helper"
 
 CAT_OUT=$("$DVCS" cat feature-x src/main.v 2>&1)
 check_contains "cat prints exact file content" "$CAT_OUT" "fn helper() {}"
+
+#scenario full PR review lifecycle,including self-approval block
+log_section "Pull request review workflow"
+"$DVCS" push feature-x >/dev/null 2>&1
+check "bob: push feature branch" $? 0
+
+PR_OPEN=$("$DVCS" pr-open feature-x main "Add helper" "small helper fn" 2>&1)
+check_contains "bob: pr-open succeeds" "$PR_OPEN" "Opened pull request"
+
+"$DVCS" pr-approve 0 >/dev/null 2>&1
+check "bob: cannot approve own PR" $? 1
+
+cd "$ALICE_DIR"
+PR_LIST=$("$DVCS" pr-list 2>&1)
+check_contains "alice: pr-list shows the PR" "$PR_LIST" "feature-x -> main"
+
+"$DVCS" pr-approve 0 >/dev/null
+check "alice: approve PR" $? 0
+"$DVCS" pr-merge 0 >/dev/null
+check "alice: merge PR" $? 0
+
+"$DVCS" pull main >/dev/null 2>&1 || "$DVCS" pull main >/dev/null 2>&1
+"$DVCS" checkout main >/dev/null
+check_contains "alice: merged PR content landed on main" "$(cat src/main.v)" "helper"
