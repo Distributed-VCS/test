@@ -400,3 +400,22 @@ const fs = require('fs');
 })();
 ")
 check_contains "oversized chunk reverts with ChunkTooLarge" "$CHUNK_TEST" "OK:ChunkTooLarge"
+
+#secnario chagelog
+
+log_section "Changelog"
+cd "$ALICE_DIR"
+CHANGELOG=$("$DVCS" changelog 2>&1)
+check_contains "changelog recorded repo-create" "$CHANGELOG" "repo-create"
+check_contains "changelog recorded push-commit" "$CHANGELOG" "push-commit"
+check_contains "changelog recorded member-add" "$CHANGELOG" "member-add"
+
+log_section "Summary"
+echo "  ${PASS} passed, ${FAIL} failed"
+if [ "$FAIL" -gt 0 ]; then
+  echo ""
+  echo "  Failures:"
+  for f in "${FAILURES[@]}"; do echo "    - $f"; done
+  exit 1
+fi
+exit 0
