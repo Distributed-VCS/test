@@ -272,3 +272,25 @@ EVE_PULL=$("$DVCS" pull 2>&1)
 "$DVCS" pull >/dev/null 2>&1
 check_contains "wrong passphrase: AES-GCM auth failure reported" "$EVE_PULL" "AES-GCM"
 export DVCS_PASSPHRASE="team secret passphrase"
+
+#scenario diff, ls, show, cat
+
+log_section "Inspection commands"
+cd "$BOB_DIR"
+"$DVCS" branch feature-x >/dev/null
+"$DVCS" checkout feature-x >/dev/null
+echo "fn helper() {}" >>src/main.v
+"$DVCS" add src >/dev/null
+"$DVCS" commit -m "Add helper" >/dev/null
+
+DIFF_OUT=$("$DVCS" diff main feature-x 2>&1)
+check_contains "diff shows modified file" "$DIFF_OUT" "modified src/main.v"
+
+LS_OUT=$("$DVCS" ls feature-x 2>&1)
+check_contains "ls shows tracked file" "$LS_OUT" "src/main.v"
+
+SHOW_OUT=$("$DVCS" show feature-x 2>&1)
+check_contains "show includes commit message" "$SHOW_OUT" "Add helper"
+
+CAT_OUT=$("$DVCS" cat feature-x src/main.v 2>&1)
+check_contains "cat prints exact file content" "$CAT_OUT" "fn helper() {}"
