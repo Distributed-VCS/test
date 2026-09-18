@@ -225,3 +225,19 @@ check "alice: crypto-init" $? 0
 export DVCS_PASSPHRASE="team secret passphrase"
 "$DVCS" push >/dev/null 2>&1
 check "alice: push succeeds after crypto-init" $? 0
+
+# secnario member -add by handle, member install
+#
+log_section "Identity + membership"
+cd "$BOB_DIR"
+"$DVCS" init >/dev/null
+"$DVCS" remote "$RPC_URL" "$CONTRACT" "$BOB" >/dev/null
+"$DVCS" identity-register "bob@example.com" >/dev/null
+check "bob: identity-register" $? 0
+
+cd "$ALICE_DIR"
+"$DVCS" member-add "bob@example.com" contributor >/dev/null
+check "alice: member-add resolves handle" $? 0
+MEMBERS=$("$DVCS" member-list 2>&1)
+check_contains "member-list shows bob's handle" "$MEMBERS" "bob@example.com"
+check_contains "member-list shows contributor role" "$MEMBERS" "contributor"
