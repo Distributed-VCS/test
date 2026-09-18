@@ -335,3 +335,32 @@ echo "more" >extra.txt
 check "alice: cannot approve own PR either" $? 1
 "$DVCS" pr-merge 1 >/dev/null 2>&1
 check "merge fails with 0/2 approvals" $? 1
+
+#secnario rebase with real conflict detection
+
+log_section "Rebase conflict detection"
+cd "$ALICE_DIR"
+"$DVCS" checkout main >/dev/null
+"$DVCS" branch conflict-base >/dev/null
+"$DVCS" branch branch-a >/dev/null
+"$DVCS" checkout branch-a >/dev/null
+echo "version-A" >conflict.txt
+"$DVCS" add conflict.txt >/dev/null
+"$DVCS" commit -m "A's change" >/dev/null
+
+"$DVCS" checkout main >/dev/null
+"$DVCS" branch branch-b >/dev/null
+"$DVCS" checkout branch-b >/dev/null
+echo "version-B" >conflict.txt
+"$DVCS" add conflict.txt >/dev/null
+"$DVCS" commit -m "B's change" >/dev/null
+
+"$DVCS" checkout branch-a >/dev/null
+REBASE_OUT=$("$DVCS" rebase branch-b 2>&1)
+check_contains "rebase reports a real conflict" "$REBASE_OUT" "CONFLICT"
+check_contains "rebase names the conflicting path" "$REBASE_OUT" "conflict.txt"
+
+REBASE_THEIRS=$("$DVCS" rebase branch-b --theirs 2>&1)
+check_contains "rebase --theirs auto-resolves" "$REBASE_THEIRS" "resolving"
+CAT_AFTER=$("$DVCS" cat branch-a conflict.txt 2>&1)
+check_contains "rebase --theirs took branch-b's content" "$CAT_AFTER" "version-B"
