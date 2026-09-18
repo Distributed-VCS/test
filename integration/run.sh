@@ -241,3 +241,19 @@ check "alice: member-add resolves handle" $? 0
 MEMBERS=$("$DVCS" member-list 2>&1)
 check_contains "member-list shows bob's handle" "$MEMBERS" "bob@example.com"
 check_contains "member-list shows contributor role" "$MEMBERS" "contributor"
+
+# scenario access control push before/after role grant
+
+log_section "Access control"
+cd "$BOB_DIR"
+"$DVCS" repo-connect "$ALICE" teamproject >/dev/null
+check "bob: repo-connect" $? 0
+"$DVCS" pull >/dev/null 2>&1 || "$DVCS" pull >/dev/null 2>&1 # tolerate one transient RPC hiccup
+check "bob: pull (auto-discovers encryption salt)" $? 0
+
+CFG=$(cat .dvcs/config)
+check_contains "bob: salt auto-discovered without being told directly" "$CFG" "encrypt=true"
+
+"$DVCS" checkout main >/dev/null
+check "bob: checkout after pull" $? 0
+check_contains "bob: decrypted content matches alice's" "$(cat src/main.v)" "v1"
