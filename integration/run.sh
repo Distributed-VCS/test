@@ -364,3 +364,12 @@ REBASE_THEIRS=$("$DVCS" rebase branch-b --theirs 2>&1)
 check_contains "rebase --theirs auto-resolves" "$REBASE_THEIRS" "resolving"
 CAT_AFTER=$("$DVCS" cat branch-a conflict.txt 2>&1)
 check_contains "rebase --theirs took branch-b's content" "$CAT_AFTER" "version-B"
+
+#scenario rollback
+log_section "Rollback"
+cd "$ALICE_DIR"
+"$DVCS" checkout main >/dev/null
+FIRST_COMMIT=$("$DVCS" log 2>&1 | grep '^commit ' | tail -1 | awk '{print $2}')
+echo "  rolling back to: ${FIRST_COMMIT}"
+"$DVCS" rollback "${FIRST_COMMIT:2:10}" >/dev/null 2>&1
+check "rollback by short prefix" $? 0
